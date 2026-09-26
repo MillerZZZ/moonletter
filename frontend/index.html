@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoonLetter: Living Lunar Oasis — Bioluminescent Sanctuary</title>
+  <meta name="description" content="Turn iMessage chats into a thriving bioluminescent lunar oasis with your partner or group.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+      <div class="brand">
+        <!-- Glowing Pixel Sprout & Moon Logo -->
+        <svg class="pixel-icon logo-icon" viewBox="0 0 16 16" width="30" height="30">
+          <path d="M6 1h4v2h2v2h1v4h-1v2h-2v2H6v-1H4v-2H3V7h1V5h2V1z" fill="#00f0ff" />
+          <path d="M7 6h2v6H7V6z" fill="#50fa7b" />
+          <path d="M4 8h3v2H4V8zm5-2h3v2H9V6z" fill="#ff2a8d" />
+        </svg>
+        <div>
+          <h1 class="brand-title">MoonLetter</h1>
+          <span class="brand-subtitle">LIVING LUNAR OASIS · BIOLUMINESCENT SANCTUARY</span>
+        </div>
+      </div>
+
+      <div class="orbit-status">
+        <span class="status-dot"></span>
+        <span class="orbit-text">Photon Gateway: <strong>#STL-HGZ</strong></span>
+      </div>
+
+      <!-- Demo State Preset Switcher -->
+      <div class="demo-state-switcher">
+        <button id="btn-demo-day1" class="demo-mode-btn active" title="Start from Message 0">🌱 Start Day 1 (Barren Moon)</button>
+        <button id="btn-demo-flourishing" class="demo-mode-btn" title="Load fully flourishing oasis">✨ Flourishing Oasis (142 Msgs)</button>
+      </div>
+
+      <!-- Oasis Progress Badges -->
+      <div class="oasis-stats-bar">
+        <div class="stat-badge streak-badge" title="Consecutive Chat Streak">
+          <span class="badge-icon">🔥</span>
+          <span id="streak-count">4-Day Streak</span>
+        </div>
+        <div class="stat-badge water-badge" title="Tree Water Level">
+          <span class="badge-icon">💧</span>
+          <span id="water-level">Water: 85%</span>
+        </div>
+        <div class="stat-badge biosphere-badge" title="Oasis Biosphere Flourish Level">
+          <span class="badge-icon">🌿</span>
+          <span id="biosphere-level">Oasis: 85% Lush</span>
+        </div>
+        <div class="stat-badge msg-badge" title="Total Chat Messages vs Next Milestone Target">
+          <span class="badge-icon">💬</span>
+          <span id="msg-counter">142 / 200 Msgs</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="main-content">
+      
+      <!-- Panel A: Photon iMessage Sandbox (Left Side) -->
+      <section id="imessage-panel" class="panel glass-card">
+        <div class="panel-header">
+          <div class="agent-avatar">
+            <span class="avatar-icon">🤖</span>
+            <div>
+              <h2>Photon Spectrum Agent</h2>
+              <span class="agent-status">Online · Listening to #STL-HGZ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulated iMessage Chat Log -->
+        <div class="chat-viewport" id="chat-stream">
+          <div class="chat-bubble agent-card-bubble">
+            <div class="agent-card-header">
+              <span class="card-icon">🌙</span>
+              <span>PHOTON OASIS AGENT</span>
+            </div>
+            <p class="card-body">✨ <strong>Lush Oasis Active!</strong> 3 visiting space critters have gathered. Keep chatting to water the trees & prevent leaf drop!</p>
+            <div class="card-progress">
+              <span>Next Milestone Target: <strong id="card-milestone-text">142 / 200 Msgs</strong></span>
+              <div class="progress-bar-track"><div class="progress-bar-fill" id="card-progress-fill" style="width: 42%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation Quick Action Buttons -->
+        <div class="simulation-triggers">
+          <span class="sim-label">Oasis & Watering Controls:</span>
+          <button class="sim-btn" id="sim-msg-btn">💬 Send 1st iMessage</button>
+          <button class="sim-btn burst-btn" id="sim-burst-btn">⚡ Spread Moss (+10 Msgs)</button>
+          <button class="sim-btn water-btn" id="sim-water-btn">💧 Water & Nurture Trees</button>
+          <button class="sim-btn dry-btn" id="sim-dry-btn">⌛ Simulate 2 Days Inactivity (Leaves Drop)</button>
+          <button class="sim-btn tree-btn" id="sim-milestone-btn">🎆 100-Msg Mother Tree!</button>
+          <button class="sim-btn rain-btn" id="sim-rain-btn">🌧️ Toggle Cosmic Rain</button>
+        </div>
+
+        <!-- iMessage Input Box -->
+        <div class="imessage-input-container">
+          <input type="text" id="chat-input" placeholder="Type an iMessage to your partner..." />
+          <button id="chat-send-btn" class="send-message-btn">Send via Photon</button>
+        </div>
+      </section>
+
+      <!-- Panel B: Dynamic Pixel Lunar Oasis Viewport (Right Side) -->
+      <section id="oasis-panel" class="panel sky-card">
+        <div id="sky-viewport" class="sky-viewport">
+          
+          <!-- Sky Viewport Top Controls Header -->
+          <div class="sky-top-header">
+            <div class="weather-badge" id="weather-badge">
+              <span class="weather-pixel-icon">🌸</span>
+              <span class="weather-text" id="weather-text">Oasis Status: Bioluminescent Sanctuary</span>
+            </div>
+            
+            <!-- Temporal Week Selector Tabs -->
+            <div class="temporal-week-selector">
+              <button class="week-tab" data-week="1">W1: Day 1</button>
+              <button class="week-tab" data-week="2">W2: Growth</button>
+              <button class="week-tab" data-week="3">W3: Bloom</button>
+              <button class="week-tab active" data-week="4">W4: Sanctuary</button>
+            </div>
+          </div>
+          
+          <!-- Background Celestial Starfield & Warm Nebula Glow -->
+          <div class="pixel-stars" id="starfield"></div>
+          <div class="cosmic-nebula-glow"></div>
+          <div class="warm-oasis-glow"></div>
+          
+          <!-- Animated Sky Layers & Floating Spores -->
+          <div class="pixel-sky-elements" id="pixel-sky-elements">
+            <div id="aurora-curtain" class="pixel-aurora"></div>
+            <div id="cosmic-rain-layer" class="pixel-rain-layer"></div>
+            <div id="floating-spores-layer" class="floating-spores-layer"></div>
+            <div id="falling-leaves-layer" class="falling-leaves-layer">
+              <div class="falling-leaf leaf-1">🍂</div>
+              <div class="falling-leaf leaf-2">🍁</div>
+              <div class="falling-leaf leaf-3">🍃</div>
+              <div class="falling-leaf leaf-4">🍂</div>
+              <div class="falling-leaf leaf-5">🍁</div>
+              <div class="falling-leaf leaf-6">🍃</div>
+              <div class="ground-leaves">
+                <span class="ground-leaf g-leaf-1">🍂</span>
+                <span class="ground-leaf g-leaf-2">🍁</span>
+                <span class="ground-leaf g-leaf-3">🍂</span>
+                <span class="ground-leaf g-leaf-4">🍃</span>
+                <span class="ground-leaf g-leaf-5">🍁</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Glowing Pixel Moon in Sky -->
+          <div class="pixel-moon-wrapper">
+            <div class="pixel-moon-halo" id="moon-glow"></div>
+            <svg id="pixel-moon-svg" viewBox="0 0 32 32" class="pixel-moon-canvas">
+              <rect x="10" y="2" width="12" height="2" fill="#fff5cc" />
+              <rect x="6" y="4" width="20" height="2" fill="#fff5cc" />
+              <rect x="4" y="6" width="24" height="20" fill="#fff5cc" />
+              <rect x="6" y="26" width="20" height="2" fill="#fff5cc" />
+              <rect x="10" y="28" width="12" height="2" fill="#fff5cc" />
+              <rect x="8" y="8" width="4" height="4" fill="#e0c987" />
+              <rect x="18" y="14" width="6" height="4" fill="#e0c987" />
+              <rect x="12" y="20" width="4" height="4" fill="#e0c987" />
+            </svg>
+          </div>
+
+          <!-- Visiting Space Critters -->
+          <div class="critters-layer" id="critters-layer">
+            <div class="critter moon-bunny" id="critter-bunny" title="Luna Lagomorph (Click to pet!)">
+              <div class="critter-speech-bubble">Hop! 🐰</div>
+              <svg viewBox="0 0 16 16" width="30" height="30">
+                <rect x="6" y="1" width="2" height="6" fill="#fff" />
+                <rect x="9" y="1" width="2" height="6" fill="#fff" />
+                <rect x="5" y="7" width="7" height="6" fill="#f8fafc" />
+                <rect x="6" y="9" width="2" height="2" fill="#ff2a8d" />
+                <rect x="4" y="11" width="3" height="3" fill="#cbd5e1" />
+              </svg>
+            </div>
+            <div class="critter cosmic-bat" id="critter-bat" title="Nebula Bat (Click to view!)">
+              <div class="critter-speech-bubble">Echolocation ✨</div>
+              <svg viewBox="0 0 32 20" width="40" height="26">
+                <path d="M 14 10 Q 6 2 2 8 Q 8 12 14 10 Z" fill="#4c1d95" />
+                <path d="M 14 10 Q 8 4 4 8 Z" fill="#ff2a8d" opacity="0.85" />
+                <path d="M 18 10 Q 26 2 30 8 Q 24 12 18 10 Z" fill="#4c1d95" />
+                <path d="M 18 10 Q 24 4 28 8 Z" fill="#ff2a8d" opacity="0.85" />
+                <ellipse cx="16" cy="11" rx="4" ry="5" fill="#1e1b4b" />
+                <circle cx="14.5" cy="10" r="1" fill="#00f0ff" />
+                <circle cx="17.5" cy="10" r="1" fill="#00f0ff" />
+                <polygon points="13,7 15,3 15,7" fill="#6d28d9" />
+                <polygon points="17,7 17,3 19,7" fill="#6d28d9" />
+              </svg>
+            </div>
+            <div class="critter cosmic-manta" id="critter-manta" title="Cosmic Manta (Click to view!)">
+              <div class="critter-speech-bubble">Glide... 🌌</div>
+              <svg viewBox="0 0 28 16" width="44" height="24">
+                <path d="M2 8 C 8 1, 20 1, 26 8 C 20 15, 8 15, 2 8 Z" fill="#00f0ff" opacity="0.85" />
+                <circle cx="14" cy="8" r="4" fill="#ff2a8d" />
+                <circle cx="14" cy="8" r="2" fill="#ffe600" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Lush Bioluminescent Lunar Oasis Terrain with Dynamic Moss & Flowers -->
+          <div class="lunar-surface-container">
+            <div class="mountain-range-bg"></div>
+            <div class="lunar-crater-soil">
+              <div class="soil-bioluminescence-glow"></div>
+              <div class="glowing-moss-carpet" id="moss-carpet">
+                <div class="moss-patch p1"></div>
+                <div class="moss-patch p2"></div>
+                <div class="moss-patch p3"></div>
+                <div class="pixel-flower f1">🌸</div>
+                <div class="pixel-flower f2">🌼</div>
+                <div class="pixel-flower f3">🌺</div>
+                <div class="pixel-flower f4">✨</div>
+                <div class="pixel-shroom s1">🍄</div>
+                <div class="pixel-shroom s2">🍄</div>
+              </div>
+            </div>
+
+            <!-- Dynamic Pixel Trees Layer -->
+            <div class="pixel-trees-grid" id="pixel-trees-grid">
+              <!-- Rendered dynamically via app.js -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Stacked Level-History Time Capsule Modal -->
+    <div class="modal-overlay" id="time-capsule-modal">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-icon" id="modal-tree-icon">💎</span>
+            <div>
+              <h3 id="modal-tree-name">Alex's Crystal Oak</h3>
+              <span class="modal-subtext" id="modal-plant-date">Level 1 · First Memory</span>
+            </div>
+          </div>
+          <button class="modal-close-btn" id="modal-close">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-level-tabs" id="modal-level-tabs">
+            <button class="level-tab-btn active">Level 1</button>
+          </div>
+
+          <div class="time-capsule-box">
+            <span class="capsule-label" id="modal-level-label">📜 Level 1 Memory Capsule:</span>
+            <p class="capsule-text" id="modal-capsule-text">"First message sent!"</p>
+            <div class="capsule-meta">
+              <span id="modal-author">Sent by Alex (St. Louis)</span>
+              <span class="sentiment-pill" id="modal-sentiment">Sentiment: Warm Comfort</span>
+            </div>
+          </div>
+
+          <div class="tree-health-status">
+            <span>Tree Water Status: <strong id="modal-stage-text">Water: 85% (Healthy & Blooming)</strong></span>
+            <div class="progress-bar-track"><div class="progress-bar-fill" id="modal-water-bar" style="width: 85%;"></div></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="primary-btn water-action-btn" id="modal-water-action">💧 Water Tree & Restore Leaves</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Oasis Flora & Critter Codex Bar -->
+    <footer class="history-footer">
+      <div class="history-header">
+        <h3>Lunar Oasis Codex & Visiting Critters</h3>
+        <span class="history-subtext" id="codex-subtext">3 Space Critters Visiting · Lush Moss Carpet Active</span>
+      </div>
+      <div class="codex-chips" id="codex-chips">
+        <div class="codex-chip active" id="codex-bunny-chip">
+          <span class="chip-icon">🐰</span>
+          <span class="chip-name">Moon Bunny (Visiting)</span>
+        </div>
+        <div class="codex-chip active" id="codex-bat-chip">
+          <span class="chip-icon">🦇</span>
+          <span class="chip-name">Nebula Bat (Visiting)</span>
+        </div>
+        <div class="codex-chip active" id="codex-manta-chip">
+          <span class="chip-icon">🌌</span>
+          <span class="chip-name">Cosmic Manta (Visiting)</span>
+        </div>
+        <div class="codex-chip active" id="codex-mother-chip">
+          <span class="chip-icon">🌳</span>
+          <span class="chip-name">Mother Baobab (Lvl 3)</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
