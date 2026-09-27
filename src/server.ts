@@ -194,9 +194,25 @@ function textOf(content: any): string {
   return "";
 }
 
+// The terminal may be on the projector during the demo, so senders are
+// masked: +13145550123 → +1•••0123, name@example.com → na•••@example.com.
+function maskHandle(handle: string): string {
+  if (handle.includes("@")) return handle.replace(/^(.{0,2}).*@/, "$1•••@");
+  if (/^\+?\d{7,}$/.test(handle)) return `${handle.slice(0, 2)}•••${handle.slice(-4)}`;
+  return handle;
+}
+
+// One line per log entry: quoted text (cut at 60 characters) or the content type.
+function preview(content: any): string {
+  const chars = Array.from(textOf(content));
+  if (chars.length === 0) return `[${content?.type}]`;
+  return JSON.stringify(chars.length > 60 ? `${chars.slice(0, 57).join("")}…` : chars.join(""));
+}
+
 for await (const [space, message] of app.messages) {
   if (!SENT_CONTENT.has(message?.content?.type)) continue;
   lastSpace = space;
   const author = message?.sender?.id ? String(message.sender.id) : "Partner";
-  addMessage(textOf(message.content), author);
+  const state = addMessage(textOf(message.content), author);
+  console.log(`📩 iMessage from ${maskHandle(author)}: ${preview(message.content)} → message #${state.messageCount}`);
 }
