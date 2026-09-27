@@ -1,11 +1,9 @@
-# MoonLetter × Photon — real backend for the teammate's pixel-art frontend
+# Lunar Oasis × Photon — Interactive Pixel Garden Powered by Real-Time Messaging
 
-This backend now powers **her** actual UI (`frontend/`), not the
-earlier from-scratch garden mockup (archived in `_legacy/`). It mirrors the
-*real* logic already in her `app.js` — message count, water level, streak,
-biosphere level, first-message oak sprout, 100-message Mother Tree — not the
-more ambitious `backend_requirements.md` wishlist (no LLM calls, no 20-message
-time capsules; those were intentionally left out per team discussion).
+lunar Oasis is an interactive pixel-art garden that evolves based on 
+real messaging activity through Photon. The frontend visualizes message count, 
+water level, streaks, biosphere growth, and milestone-based tree growth, 
+while the backend keeps the garden state synchronized with incoming messages.
 
 ## What's real vs. simulated
 
