@@ -1,10 +1,10 @@
 import { Spectrum, text } from "spectrum-ts";
-import { terminal } from "spectrum-ts/providers/terminal";
-// To switch to iMessage later, swap the two lines above for:
-//   import { imessage } from "spectrum-ts/providers/imessage";
-// and swap `terminal.config()` below for `imessage.config()`.
-// Nothing else in this file needs to change — Spectrum normalizes every
-// provider into the same [space, message] stream.
+import { imessage } from "spectrum-ts/providers/imessage";
+// To test locally without Photon credentials, swap the line above for:
+//   import { terminal } from "spectrum-ts/providers/terminal";
+// and call `Spectrum({ providers: [terminal.config()] })` below instead,
+// dropping the credentials check. Spectrum normalizes every provider into
+// the same [space, message] stream, so the message loop stays the same.
 
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -24,6 +24,11 @@ import {
 } from "./oasis-state";
 
 const PORT = Number(process.env.PORT ?? 3000);
+const { PROJECT_ID, PROJECT_SECRET } = process.env;
+if (!PROJECT_ID || !PROJECT_SECRET) {
+  console.error("iMessage needs PROJECT_ID and PROJECT_SECRET in .env. Copy them from your project's Settings at https://app.photon.codes (promo code HACKWITHPHOTON).");
+  process.exit(1);
+}
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Serves the teammate's actual pixel-art frontend (index.html/app.js/style.css),
 // patched to call these endpoints instead of mutating a local mock `state`.
@@ -138,9 +143,9 @@ httpServer.listen(PORT, () => {
 startDecayClock();
 
 const app = await Spectrum({
-  projectId: process.env.PROJECT_ID!,
-  projectSecret: process.env.PROJECT_SECRET!,
-  providers: [terminal.config()],
+  projectId: PROJECT_ID,
+  projectSecret: PROJECT_SECRET,
+  providers: [imessage.config()],
 });
 
 // Remembers whichever conversation last sent a message, so a milestone
@@ -175,12 +180,23 @@ oasisEvents.on("wilt-start", async (_state: OasisState) => {
   }
 });
 
-console.log("Photon is watching quietly — type in the terminal UI to grow the oasis.");
+console.log("Photon is watching quietly — text your Photon iMessage line to grow the oasis.");
 console.log("It only speaks up at real milestones (first sprout, 100-msg mother tree) or if things go quiet.");
 
+// iMessage also streams read receipts, typing, tapbacks, edits, unsends and
+// group changes; only content someone actually sent counts as chatting.
+const SENT_CONTENT = new Set(["text", "markdown", "attachment", "voice", "contact", "richlink", "app", "poll", "group", "reply", "effect"]);
+
+// Replies and send-with-effect messages wrap their text one level down.
+function textOf(content: any): string {
+  if (content?.type === "text") return content.text;
+  if (content?.type === "reply" || content?.type === "effect") return textOf(content.content);
+  return "";
+}
+
 for await (const [space, message] of app.messages) {
+  if (!SENT_CONTENT.has(message?.content?.type)) continue;
   lastSpace = space;
-  const messageText = message?.content?.type === "text" ? message.content.text : "";
   const author = message?.sender?.id ? String(message.sender.id) : "Partner";
-  addMessage(messageText, author);
+  addMessage(textOf(message.content), author);
 }

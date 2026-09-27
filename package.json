@@ -5,8 +5,8 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "bun run src/server.ts",
-    "seed": "curl -X POST \"http://localhost:${PORT:-3000}/api/seed?count=20\"",
-    "reset": "curl -X POST \"http://localhost:${PORT:-3000}/api/reset\""
+    "seed": "curl -X POST \"http://localhost:${PORT:-3000}/api/oasis/message\" -H 'Content-Type: application/json' -d '{\"text\":\"Seeded demo message\",\"count\":20}'",
+    "reset": "curl -X POST \"http://localhost:${PORT:-3000}/api/oasis/reset\""
   },
   "dependencies": {
     "spectrum-ts": "latest"

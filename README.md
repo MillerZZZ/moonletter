@@ -15,16 +15,20 @@ time capsules; those were intentionally left out per team discussion).
 - **Still frontend-only, untouched**: the `W1`–`W4` week tabs are fixed,
   hard-coded preview snapshots (`loadTemporalWeekSnapshot`) — they're a
   "what would week 4 look like" browsing feature, not real history, and
-  don't touch the backend. Per-tree "levels" beyond the oak/mother tree
-  (`cherry_01`, `willow_01`) are also cosmetic and only appear in those
-  snapshots or via the demo buttons' flourish code — the backend only
-  tracks the two trees that actually spawn from real activity.
+  don't touch the backend. While one (or "✨ Flourishing Oasis") is on
+  screen, the 2-second poll doesn't paint live data over it; sending a
+  message or pressing a demo button switches back to the live garden
+  (rain is the exception, so it can be shown over a preview). Per-tree
+  "levels" beyond the oak/mother tree (`cherry_01`, `willow_01`) are also
+  cosmetic and only appear in those snapshots or via the demo buttons'
+  flourish code — the backend only tracks the two trees that actually
+  spawn from real activity.
 
 ## Setup
 
 ```bash
 bun install
-cp .env.example .env   # paste PROJECT_ID / PROJECT_SECRET (promo code HACKWITHPHOTON)
+cp .env.example .env   # paste PROJECT_ID / PROJECT_SECRET from app.photon.codes → Settings (promo code HACKWITHPHOTON)
 bun run dev
 ```
 
@@ -46,7 +50,7 @@ instead of mutating a local mock `state` object:
 | 💥 100-Msg Mother Tree                | `POST /api/oasis/demo/milestone` |
 | 🌧️ Rain: Active (toggle)             | `POST /api/oasis/rain/toggle`    |
 | 💧 Water Tree (inside tree modal)     | `POST /api/oasis/water`          |
-| 🌱 Start Day 1                        | frontend-only (`loadDay1Mode`)   |
+| 🌱 Start Day 1                        | `POST /api/oasis/reset`          |
 
 The page also polls `GET /api/oasis/state` every 2 seconds, so it picks up
 real incoming Spectrum messages (or wilt/decay ticking down) even if you
@@ -71,18 +75,25 @@ the earlier PNG-rendering code (`_legacy/render-garden.ts`) was built around
 the old generic SVG scene and doesn't match her pixel art, so it's parked
 until/unless you want to export art assets to rasterize server-side.
 
-## Switching to iMessage later
+## iMessage
 
-Same two-line swap as before, in `src/server.ts`:
+`src/server.ts` runs on Photon's cloud iMessage, so `PROJECT_ID` and
+`PROJECT_SECRET` in `.env` are required (the server exits with a hint if
+they're missing). Only content someone actually sent counts as a message:
+text, photos, voice memos, replies and so on. Read receipts, typing
+indicators, tapbacks, edits and group changes are ignored.
+
+To test locally without credentials, swap back to the terminal chat in
+`src/server.ts`:
 
 ```ts
-// before
-import { terminal } from "spectrum-ts/providers/terminal";
-providers: [terminal.config()],
-
-// after
+// iMessage (current)
 import { imessage } from "spectrum-ts/providers/imessage";
-providers: [imessage.config()],
+Spectrum({ projectId: PROJECT_ID, projectSecret: PROJECT_SECRET, providers: [imessage.config()] });
+
+// terminal (no credentials needed; also drop the credentials check)
+import { terminal } from "spectrum-ts/providers/terminal";
+Spectrum({ providers: [terminal.config()] });
 ```
 
 ## Files
@@ -103,11 +114,9 @@ providers: [imessage.config()],
 I haven't run this against Photon's real servers or in a real browser (no
 network in the environment I built this in), so before you rely on it:
 
-1. Confirm `message.content.type === "text"` / `message.content.text` /
-   `message.sender.id` are actually the right fields for the terminal (and
-   later iMessage) provider — that's from the docs, not a live test.
-2. Confirm CORS + same-origin polling actually behaves in a real browser
-   tab (it should, since everything is served from `localhost:3000`, but
-   worth a two-minute sanity check).
+1. Message fields (`message.content`, `message.sender.id`): confirmed live
+   with the terminal provider and checked against the SDK source for
+   iMessage — still do one live iMessage test once credentials are in.
+2. Same-origin polling: confirmed working in a real browser tab.
 3. `streakDays` uses UTC day boundaries — fine for a demo, but say so if a
    judge asks and it's midnight-adjacent.

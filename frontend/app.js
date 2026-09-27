@@ -74,10 +74,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return res.json();
   }
 
+  // Live mode shows the real garden. The W1–W4 tabs and "Flourishing Oasis"
+  // are fixed preview snapshots, so live data must not be painted over them.
+  let isLive = true;
+  let latestState = null; // newest backend payload, still tracked during previews
+
   // Copies a backend state payload into the local `state` object and
   // replays the same UI hooks the mock version used to call inline.
-  function applyBackendState(s) {
+  // `announce: false` regrows milestones already reached without re-posting their cards.
+  function applyBackendState(s, { announce = true } = {}) {
     if (!s) return;
+    latestState = s;
+    if (!isLive) return;
+
+    // The count only goes down when the backend was reset (Start Day 1 in
+    // another tab, `bun run reset`, a server restart), so start over.
+    if (s.messageCount < state.messageCount) clearToBarrenMoon();
+
     state.messageCount = s.messageCount;
     state.waterLevel = s.waterLevel;
     state.streakDays = s.streakDays;
@@ -85,10 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
     state.cosmicRainActive = s.cosmicRainActive;
 
     if (s.oakPlanted && !activeTreeCapsules['oak_01']) {
-      plantFirstSprout(s.oakSnippet || '(first message)');
+      plantFirstSprout(s.oakSnippet || '(first message)', announce);
     }
-    checkMilestoneUnlocks(); // handles mother_tree spawn + moss/critter thresholds
-    updateStateUI();         // handles counters, progress bar, thirsty/leaf visuals
+    checkMilestoneUnlocks(announce); // handles mother_tree spawn + moss/critter thresholds
+    updateStateUI();                 // handles counters, progress bar, thirsty/leaf visuals
   }
 
   let liveSyncTimer = null;
@@ -155,9 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial Load: Day 1 Mode
   loadDay1Mode();
+  enterLiveMode();
   startLiveSync(); // catch up to whatever the real backend already has
 
-  btnDemoDay1.addEventListener('click', loadDay1Mode);
+  btnDemoDay1.addEventListener('click', startFreshDay1);
   btnDemoFlourishing.addEventListener('click', loadFlourishingMode);
   attachCritterClickListeners();
   attachWeekTabListeners();
@@ -167,7 +181,40 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function loadFlourishingMode() {
-    loadTemporalWeekSnapshot(4);
+    loadPreviewSnapshot(4);
+  }
+
+  // "Start Day 1" is a real restart, not a preview: reset the backend too,
+  // or the live sync regrows the old garden on top of the barren moon.
+  function startFreshDay1() {
+    apiPost('/api/oasis/reset').then((s) => {
+      loadDay1Mode();
+      enterLiveMode();
+      applyBackendState(s);
+    });
+  }
+
+  function loadPreviewSnapshot(weekNum) {
+    isLive = false;
+    loadTemporalWeekSnapshot(weekNum);
+  }
+
+  // A highlighted week tab means "preview"; none highlighted means live.
+  function enterLiveMode() {
+    isLive = true;
+    btnDemoDay1.classList.add('active');
+    btnDemoFlourishing.classList.remove('active');
+    document.querySelectorAll('.week-tab').forEach(tab => tab.classList.remove('active'));
+  }
+
+  // Real activity (chat box, demo buttons) belongs to the live garden, so
+  // leave any preview first: regrow the real garden on a barren base,
+  // keeping the chat log and without re-announcing milestones already reached.
+  function exitPreview() {
+    if (isLive) return;
+    clearToBarrenMoon();
+    enterLiveMode();
+    applyBackendState(latestState, { announce: false });
   }
 
   // Temporal Weekly Snapshot Engine (W1, W2, W3, W4)
@@ -185,25 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnDemoDay1.classList.add('active');
       btnDemoFlourishing.classList.remove('active');
 
-      state.messageCount = 0;
-      state.waterLevel = 100;
-      state.streakDays = 1;
-      state.biosphereLevel = 0;
-      activeTreeCapsules = {};
-
-      treesGrid.innerHTML = '';
-      crittersLayer.style.display = 'none';
-      if (mossCarpetEl) mossCarpetEl.style.opacity = '0';
-      document.querySelector('.lunar-surface-container').classList.add('barren-mode');
-
-      weatherTextEl.textContent = 'Oasis Status: W1 Historical Snapshot (Pristine Barren Moon)';
-      codexSubtextEl.textContent = 'W1 Snapshot: Awaiting First Planted Seed';
-
-      codexChipsEl.innerHTML = `
-        <div class="codex-chip locked" id="codex-oak-chip" title="Planted at Message #1"><span class="chip-icon">🔒</span><span class="chip-name">Alex's Oak (Message #1)</span></div>
-        <div class="codex-chip locked" id="codex-cherry-chip" title="Planted at Message #20"><span class="chip-icon">🔒</span><span class="chip-name">Mei's Cherry (Message #20)</span></div>
-        <div class="codex-chip locked" id="codex-mother-chip" title="Unlocked at 100 Messages"><span class="chip-icon">🔒</span><span class="chip-name">Mother Baobab (100 Msgs)</span></div>
-      `;
+      clearToBarrenMoon();
 
       chatStream.innerHTML = `
         <div class="chat-bubble agent-card-bubble">
@@ -304,6 +333,35 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStateUI();
   }
 
+  // Empty crater with every seed locked: the W1 snapshot, and the base the
+  // live garden regrows on after a preview or a backend reset.
+  function clearToBarrenMoon() {
+    state.messageCount = 0;
+    state.waterLevel = 100;
+    state.streakDays = 1;
+    state.biosphereLevel = 0;
+    activeTreeCapsules = {};
+
+    modalOverlay.style.display = 'none'; // its tree is about to be removed
+    treesGrid.innerHTML = '';
+    crittersLayer.style.display = 'none';
+    // Undo the W2/W3 snapshots hiding individual critters.
+    ['critter-bunny', 'critter-bat', 'critter-manta'].forEach(id => {
+      document.getElementById(id).style.display = '';
+    });
+    if (mossCarpetEl) mossCarpetEl.style.opacity = '0';
+    document.querySelector('.lunar-surface-container').classList.add('barren-mode');
+
+    weatherTextEl.textContent = 'Oasis Status: W1 Historical Snapshot (Pristine Barren Moon)';
+    codexSubtextEl.textContent = 'W1 Snapshot: Awaiting First Planted Seed';
+
+    codexChipsEl.innerHTML = `
+      <div class="codex-chip locked" id="codex-oak-chip" title="Planted at Message #1"><span class="chip-icon">🔒</span><span class="chip-name">Alex's Oak (Message #1)</span></div>
+      <div class="codex-chip locked" id="codex-cherry-chip" title="Planted at Message #20"><span class="chip-icon">🔒</span><span class="chip-name">Mei's Cherry (Message #20)</span></div>
+      <div class="codex-chip locked" id="codex-mother-chip" title="Unlocked at 100 Messages"><span class="chip-icon">🔒</span><span class="chip-name">Mother Baobab (100 Msgs)</span></div>
+    `;
+  }
+
   // Dynamic Milestone Math
   function getMilestoneTarget(count) {
     return Math.ceil((count + 1) / 100) * 100;
@@ -325,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleSendMessage() {
     const text = chatInput.value.trim();
     if (!text) return;
+    exitPreview();
 
     appendBubble('user-bubble', 'Alex (St. Louis)', text, 'Just now');
     chatInput.value = '';
@@ -344,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function plantFirstSprout(userText) {
+  function plantFirstSprout(userText, announce = true) {
     activeTreeCapsules['oak_01'] = {
       name: "Alex's Crystal Oak", icon: "💎", level: 1,
       memories: [{ level: 1, date: "Level 1 · Day 1 (Message #1)", author: "Alex (St. Louis)", snippet: userText, sentiment: "Warm Beginning" }]
@@ -356,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderTreeElement('oak_01', activeTreeCapsules['oak_01']);
 
+    if (!announce) return;
     setTimeout(() => {
       appendAgentCard(
         `🌱 <strong>FIRST SEED PLANTED ON THE MOON!</strong> Photon Agent detected your entry and planted <em>Alex's Crystal Oak Seedling</em>.`
@@ -363,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 400);
   }
 
-  function checkMilestoneUnlocks() {
+  function checkMilestoneUnlocks(announce = true) {
     if (state.biosphereLevel >= 25) {
       if (mossCarpetEl) mossCarpetEl.style.opacity = '1';
       document.querySelector('.lunar-surface-container').classList.remove('barren-mode');
@@ -383,14 +443,17 @@ document.addEventListener('DOMContentLoaded', () => {
         motherChip.innerHTML = '<span class="chip-icon">🌳</span><span class="chip-name">Mother Baobab (Lvl 3)</span>';
       }
 
-      appendAgentCard(
-        `🎆 <strong>100-MESSAGE MILESTONE UNLOCKED!</strong> The <strong>Mother Baobab Tree</strong> sprouted with a glowing galaxy canopy!`
-      );
+      if (announce) {
+        appendAgentCard(
+          `🎆 <strong>100-MESSAGE MILESTONE UNLOCKED!</strong> The <strong>Mother Baobab Tree</strong> sprouted with a glowing galaxy canopy!`
+        );
+      }
     }
   }
 
   // Simulation Triggers
   simMsgBtn.addEventListener('click', () => {
+    exitPreview();
     if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
     document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
 
@@ -400,6 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   simBurstBtn.addEventListener('click', () => {
+    exitPreview();
     if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
     document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
 
@@ -420,6 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Restore Water
   simWaterBtn.addEventListener('click', () => {
+    exitPreview();
     apiPost('/api/oasis/water').then((s) => {
       applyBackendState(s);
       appendAgentCard(`💧 <strong>Tree Water Reaction Received!</strong> Water restored to 100%. Falling leaves stopped, flowers blooming!`);
@@ -429,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Simulate 2 Days Inactivity (Leaves Drop Mechanic)
   if (simDryBtn) {
     simDryBtn.addEventListener('click', () => {
+      exitPreview();
       apiPost('/api/oasis/demo/inactivity').then((s) => {
         applyBackendState(s);
         appendAgentCard(
@@ -439,6 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   simMilestoneBtn.addEventListener('click', () => {
+    exitPreview();
     apiPost('/api/oasis/demo/milestone').then((s) => {
       applyBackendState(s);
 
@@ -736,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
     weekTabs.forEach(tab => {
       tab.addEventListener('click', () => {
         const weekNum = parseInt(tab.getAttribute('data-week'), 10);
-        loadTemporalWeekSnapshot(weekNum);
+        loadPreviewSnapshot(weekNum);
       });
     });
   }
