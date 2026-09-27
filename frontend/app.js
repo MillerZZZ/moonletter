@@ -56,6 +56,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let activeTreeCapsules = {};
 
+  // ---- Real backend wiring (added) ----
+  // Same-origin API served by src/server.ts. Replaces the local arithmetic
+  // that used to live in handleSendMessage/simMsgBtn/etc. with the real,
+  // Spectrum-backed counter — everything else (rendering, modals, critters,
+  // week-snapshot preview) is untouched.
+  async function apiPost(path, body) {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return res.json();
+  }
+  async function apiGet(path) {
+    const res = await fetch(path);
+    return res.json();
+  }
+
+  // Copies a backend state payload into the local `state` object and
+  // replays the same UI hooks the mock version used to call inline.
+  function applyBackendState(s) {
+    if (!s) return;
+    state.messageCount = s.messageCount;
+    state.waterLevel = s.waterLevel;
+    state.streakDays = s.streakDays;
+    state.biosphereLevel = s.biosphereLevel;
+    state.cosmicRainActive = s.cosmicRainActive;
+
+    if (s.oakPlanted && !activeTreeCapsules['oak_01']) {
+      plantFirstSprout(s.oakSnippet || '(first message)');
+    }
+    checkMilestoneUnlocks(); // handles mother_tree spawn + moss/critter thresholds
+    updateStateUI();         // handles counters, progress bar, thirsty/leaf visuals
+  }
+
+  let liveSyncTimer = null;
+  async function syncFromBackend() {
+    try {
+      const s = await apiGet('/api/oasis/state');
+      applyBackendState(s);
+    } catch (err) {
+      console.warn('MoonLetter backend not reachable yet:', err);
+    }
+  }
+  function startLiveSync() {
+    syncFromBackend();
+    if (liveSyncTimer) clearInterval(liveSyncTimer);
+    liveSyncTimer = setInterval(syncFromBackend, 2000);
+  }
+
   // UI Elements
   const msgCounterEl = document.getElementById('msg-counter');
   const waterLevelEl = document.getElementById('water-level');
@@ -105,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial Load: Day 1 Mode
   loadDay1Mode();
+  startLiveSync(); // catch up to whatever the real backend already has
 
   btnDemoDay1.addEventListener('click', loadDay1Mode);
   btnDemoFlourishing.addEventListener('click', loadFlourishingMode);
@@ -278,24 +329,19 @@ document.addEventListener('DOMContentLoaded', () => {
     appendBubble('user-bubble', 'Alex (St. Louis)', text, 'Just now');
     chatInput.value = '';
 
-    state.messageCount += 1;
-    state.waterLevel = 100; // Chatting waters the trees!
-    state.biosphereLevel = Math.min(100, state.biosphereLevel + 5);
-
     if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
     document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
 
-    checkMilestoneUnlocks();
-    updateStateUI();
-
-    if (state.messageCount === 1 && !activeTreeCapsules['oak_01']) {
-      plantFirstSprout(text);
-    } else {
-      setTimeout(() => {
-        const target = getMilestoneTarget(state.messageCount);
-        appendAgentCard(`✨ <strong>Message registered! Trees watered to 100%.</strong> Count: <strong>${state.messageCount} / ${target} Msgs</strong>.`);
-      }, 400);
-    }
+    apiPost('/api/oasis/message', { text, author: 'Alex (St. Louis)' }).then((s) => {
+      const wasFirst = s.messageCount === 1;
+      applyBackendState(s);
+      if (!wasFirst) {
+        setTimeout(() => {
+          const target = getMilestoneTarget(s.messageCount);
+          appendAgentCard(`✨ <strong>Message registered! Trees watered to 100%.</strong> Count: <strong>${s.messageCount} / ${target} Msgs</strong>.`);
+        }, 400);
+      }
+    });
   }
 
   function plantFirstSprout(userText) {
@@ -345,81 +391,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Simulation Triggers
   simMsgBtn.addEventListener('click', () => {
-    state.messageCount += 1;
-    state.waterLevel = 100;
-    state.biosphereLevel = Math.min(100, state.biosphereLevel + 3);
-
     if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
     document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
 
     appendBubble('partner-bubble', 'Mei (Hangzhou)', 'Sending a quick hello from Hangzhou! 🌸', 'Just now');
-    checkMilestoneUnlocks();
-    updateStateUI();
-    if (state.messageCount === 1 && !activeTreeCapsules['oak_01']) {
-      plantFirstSprout('Sending a quick hello from Hangzhou! 🌸');
-    }
+    apiPost('/api/oasis/message', { text: 'Sending a quick hello from Hangzhou! 🌸', author: 'Mei (Hangzhou)' })
+      .then(applyBackendState);
   });
 
   simBurstBtn.addEventListener('click', () => {
-    state.messageCount += 10;
-    state.waterLevel = 100;
-    state.biosphereLevel = Math.min(100, state.biosphereLevel + 20);
-
     if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
     document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
 
     appendBubble('partner-bubble', 'Mei (Hangzhou)', 'Talking about trip memories and stargazing under the moon! ✨', 'Just now');
-    checkMilestoneUnlocks();
-    updateStateUI();
-
-    if (!activeTreeCapsules['oak_01']) {
-      plantFirstSprout('Talking about trip memories and stargazing under the moon! ✨');
-    } else {
-      levelUpTree('oak_01');
-    }
+    const hadOak = !!activeTreeCapsules['oak_01'];
+    apiPost('/api/oasis/message', {
+      text: 'Talking about trip memories and stargazing under the moon! ✨',
+      author: 'Mei (Hangzhou)',
+      count: 10,
+    }).then((s) => {
+      applyBackendState(s);
+      // Per-tree "levels" aren't tracked by the backend (it only knows
+      // oakPlanted/motherTreePlanted) — leveling an already-planted oak
+      // stays a cosmetic client-side flourish, same as before.
+      if (hadOak) levelUpTree('oak_01');
+    });
   });
 
   // Restore Water
   simWaterBtn.addEventListener('click', () => {
-    state.waterLevel = 100;
-    if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
-    document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
-    updateStateUI();
-    appendAgentCard(`💧 <strong>Tree Water Reaction Received!</strong> Water restored to 100%. Falling leaves stopped, flowers blooming!`);
+    apiPost('/api/oasis/water').then((s) => {
+      applyBackendState(s);
+      appendAgentCard(`💧 <strong>Tree Water Reaction Received!</strong> Water restored to 100%. Falling leaves stopped, flowers blooming!`);
+    });
   });
 
   // Simulate 2 Days Inactivity (Leaves Drop Mechanic)
   if (simDryBtn) {
     simDryBtn.addEventListener('click', () => {
-      state.waterLevel = 35;
-      if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'block';
-      document.querySelectorAll('.tree-item').forEach(t => t.classList.add('thirsty-state'));
-      updateStateUI();
-
-      appendAgentCard(
-        `🍂 <strong>INACTIVITY DETECTED (2 DAYS WITHOUT CHATTING)!</strong> Water level dropped to 35%. Trees are dropping leaves, but they haven't died! Send an iMessage to water them back to 100%.`
-      );
+      apiPost('/api/oasis/demo/inactivity').then((s) => {
+        applyBackendState(s);
+        appendAgentCard(
+          `🍂 <strong>INACTIVITY DETECTED (2 DAYS WITHOUT CHATTING)!</strong> Water level dropped to ${s.waterLevel}%. Trees are dropping leaves, but they haven't died! Send an iMessage to water them back to 100%.`
+        );
+      });
     });
   }
 
   simMilestoneBtn.addEventListener('click', () => {
-    state.messageCount = Math.max(state.messageCount, 100);
-    state.waterLevel = 100;
-    state.biosphereLevel = 100;
-    checkMilestoneUnlocks();
-    updateStateUI();
+    apiPost('/api/oasis/demo/milestone').then((s) => {
+      applyBackendState(s);
 
-    const motherTreeEl = document.querySelector('[data-tree-id="mother_tree"]');
-    if (motherTreeEl) {
-      motherTreeEl.classList.add('evolving');
-      setTimeout(() => motherTreeEl.classList.remove('evolving'), 800);
-    }
+      const motherTreeEl = document.querySelector('[data-tree-id="mother_tree"]');
+      if (motherTreeEl) {
+        motherTreeEl.classList.add('evolving');
+        setTimeout(() => motherTreeEl.classList.remove('evolving'), 800);
+      }
+    });
   });
 
   simRainBtn.addEventListener('click', () => {
-    state.cosmicRainActive = !state.cosmicRainActive;
-    cosmicRainLayer.style.display = state.cosmicRainActive ? 'block' : 'none';
-    simRainBtn.textContent = state.cosmicRainActive ? '🌧️ Rain: Active' : '🌧️ Toggle Cosmic Rain';
+    apiPost('/api/oasis/rain/toggle').then((s) => {
+      state.cosmicRainActive = s.cosmicRainActive;
+      cosmicRainLayer.style.display = state.cosmicRainActive ? 'block' : 'none';
+      simRainBtn.textContent = state.cosmicRainActive ? '🌧️ Rain: Active' : '🌧️ Toggle Cosmic Rain';
+    });
   });
 
   function levelUpTree(key) {
@@ -686,11 +722,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   modalWaterAction.addEventListener('click', () => {
     if (activeTreeKey) {
-      state.waterLevel = 100;
-      if (fallingLeavesLayer) fallingLeavesLayer.style.display = 'none';
-      document.querySelectorAll('.tree-item').forEach(t => t.classList.remove('thirsty-state'));
-      levelUpTree(activeTreeKey);
-      openTimeCapsuleModal(activeTreeKey);
+      apiPost('/api/oasis/water').then((s) => {
+        applyBackendState(s);
+        levelUpTree(activeTreeKey); // cosmetic per-tree flourish, same as before
+        openTimeCapsuleModal(activeTreeKey);
+      });
     }
   });
 
